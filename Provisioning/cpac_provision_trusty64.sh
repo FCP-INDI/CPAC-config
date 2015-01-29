@@ -18,7 +18,7 @@ which flirt && FSLFLAG=1 || FSLFLAG=0
 which afni && AFNIFLAG=1 || AFNIFLAG=0
 which ANTS && ANTSFLAG=1 || ANTSFLAG=0
 which c3d && C3DFLAG=1 || C3DFLAG=0
-NIPYPEFLAG=`python -c 'import nipype; print nipype.__version__' 2> /dev/null | grep -c 0.9.2` 
+NIPYPEFLAG=`python -c 'import nipype; print nipype.__version__' 2> /dev/null | grep -c 0.10` 
 # --- Gets system architecture and sets file names for downloads accordingly ---
 ARCHITECTURE=$(uname -p)
 AFNI_DOWNLOAD=linux_openmp
