@@ -132,9 +132,18 @@ cd cpac_image_resources
 echo '########## CLEANING UP... ##########'
 # --- Remove unnexessary files ---
 apt-get autoremove -y
-rm -r /tmp/nipype
-rm -r /tmp/ANTs
-rm /tmp/${C3D_DOWNLOAD}.tar.gz
+if [ $NIPYPEFLAG -eq 0 ];
+then
+    rm -r /tmp/nipype
+fi
+if [ $ANTSFLAG -eq 0 ];
+then
+    rm -r /tmp/ANTs
+fi
+if [ $C3DFLAG -eq 0 ];
+then
+    rm /tmp/${C3D_DOWNLOAD}.tar.gz
+fi
 # --- Re-source env vars and exit ---
 source /etc/profile.d/cpac_env.sh
 echo '########## DONE! ##########'
