@@ -1,6 +1,6 @@
 Vagrant.configure("2") do |config|
-  config.vm.box = "ubuntu/trusty64"
-  config.vm.provision :shell, path: "cpac_provision_trusty64.sh"
+  config.vm.box = "chef/centos-7.0"
+  config.vm.provision :shell, path: "cpac_provision_centos7.sh"
   config.vm.provider "virtualbox" do |v|
      v.memory = 8192
   end
