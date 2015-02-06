@@ -49,28 +49,31 @@ yum update -y
 echo '---------- ACQUIRING NEEDED UTILITIES/LIBRARIES... ----------'
 # For wxPython
 cd /tmp && wget http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm && rpm -Uvh epel-release-7-5.noarch.rpm
-yum install -y cmake git make unzip netpbm gcc python-devel gcc-gfortran gcc-c++ libgfortran lapack lapack-devel blas libcanberra-gtk2 libXp.x86_64 mesa-libGLU-9.0.0-4.el7.x86_64 gsl-1.15-13.el7.x86_64 zlib-1.2.7-13.el7.x86_64 zlib-devel wxBase wxGTK wxGTK-gl wxPython graphviz graphviz-devel.x86_64
+yum install -y git make unzip netpbm gcc python-devel gcc-gfortran gcc-c++ libgfortran lapack lapack-devel blas libcanberra-gtk2 libXp.x86_64 mesa-libGLU-9.0.0-4.el7.x86_64 gsl-1.15-13.el7.x86_64 wxBase wxGTK wxGTK-gl wxPython graphviz graphviz-devel.x86_64
+#yum install -y cmake zlib-1.2.7-13.el7.x86_64 zlib-devel
 # --- Install python packages ---
 echo '---------- ACQUIRING PYTHON DEPENDENCIES... ----------'
 if [ ! -d /usr/local/bin/miniconda ]
 then
     cd /tmp && wget http://repo.continuum.io/miniconda/Miniconda-3.8.3-Linux-x86_64.sh && chmod +x Miniconda-3.8.3-Linux-x86_64.sh && ./Miniconda-3.8.3-Linux-x86_64.sh -b -p /usr/local/bin/miniconda
+    # Allow non-root users to install Python packages with the Miniconda installation.
+    chmod -R 777 /usr/local/bin/miniconda
     export PATH=/usr/local/bin/miniconda/bin:${PATH}
     export PYTHONPATH=/usr/local/bin/miniconda/envs/cpac/bin
-    # User will need to specify Miniconda environment as environment for testing
+    # Create a Miniconda environment for testing
     yes | conda create -n cpac python
-    source activate cpac
-    conda install -y cython numpy scipy matplotlib networkx traits pyyaml jinja2 nose ipython
-    easy_install lockfile pygraphviz nibabel 
+    # Transfer wx and other packages. 
+    yes n | mv /usr/lib64/python2.7/site-packages/* /usr/local/bin/miniconda/lib/python2.7/site-packages 
+    yes n | mv /usr/lib/python2.7/site-packages/* /usr/local/bin/miniconda/lib/python2.7/site-packages 
+    conda install -y cython numpy scipy matplotlib networkx traits pyyaml jinja2 nose ipython pip
+    pip install lockfile pygraphviz nibabel
     echo 'export PATH=/usr/local/bin/miniconda/bin:${PATH}' >> $CPAC_ENV
     echo 'export PYTHONPATH=/usr/local/bin/miniconda/envs/cpac/bin' >> $CPAC_ENV
-    echo 'source activate cpac' >> $CPAC_ENV
 fi
 # Problem - matplotlib cannot detect Truetype and libpng, even though they are installed.  This might require
 # some symbolic links.
 # --- Sun Grid Engine compatibility (uncomment if you want SGE compatibility) ---
-# TODO - check if these are RHEL package names
-#yum install -y libmotif4 nfs-common nfs-kernel-server
+#yum install -y motif-2.3.4-7.el7.x86_64 nfs-utils nfs-utils-lib 
 #
 ##### Install needed packages #####
 echo '########## INSTALLING SOFTWARE TOOLS... ##########'
@@ -124,17 +127,7 @@ then
     wget http://downloads.sourceforge.net/project/advants/ANTS/ANTS_1_9_x/ANTs-1.9.x-Linux.tar.gz
     tar xfz ANTs-1.9.x-Linux.tar.gz
     mv ANTs-1.9.x-Linux /opt/ants
-#    cd /tmp
-#    git clone https://github.com/stnava/ANTs.git
-#    mkdir /opt/ants
-#    cd /opt/ants
-#    cmake -c -g /tmp/ANTs
-#    make -j 4
     ANTSPATH=/opt/ants/bin
-#    cp /tmp/ANTs/Scripts/antsIntroduction.sh ${ANTSPATH}
-#    cp /tmp/ANTs/Scripts/antsAtroposN4.sh ${ANTSPATH}
-#    cp /tmp/ANTs/Scripts/antsBrainExtraction.sh ${ANTSPATH}
-#    cp /tmp/ANTs/Scripts/antsCorticalThickness.sh ${ANTSPATH}
     echo '# Path to ANTS' >> $CPAC_ENV
     echo 'export ANTSPATH=/opt/ants/bin/' >> $CPAC_ENV
     echo 'export PATH=/opt/ants/bin:$PATH' >> $CPAC_ENV
@@ -164,10 +157,6 @@ yum autoremove -y
 if [ $NIPYPEFLAG -eq 0 ];
 then
     rm -r /tmp/nipype
-fi
-if [ $ANTSFLAG -eq 0 ];
-then
-    rm -r /tmp/ANTs
 fi
 if [ $C3DFLAG -eq 0 ];
 then
