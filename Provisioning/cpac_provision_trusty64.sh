@@ -124,13 +124,15 @@ then
 fi
 ##### Copy CPAC image resources #####
 echo '########## ACQUIRING CPAC IMAGE RESOURCES... ##########'
-cd /vagrant
-tar xfz cpac_resources.tar.gz
-cd cpac_image_resources
-./install_resources.sh $FSLDIR
+cd /vagrant/cpac_image_resources
+cp MNI_3mm/* $FSLDIR/data/standard
+cp symmetric/* $FSLDIR/data/standard
+cp -r tissuepriors/2mm $FSLDIR/data/standard/tissuepriors
+cp -r tissuepriors/3mm $FSLDIR/data/standard/tissuepriors
+cp HarvardOxford-lateral-ventricles-thr25-2mm.nii.gz $FSLDIR/data/atlases/HarvardOxford
 ##### Cleanup and re-source #####
 echo '########## CLEANING UP... ##########'
-# --- Remove unnexessary files ---
+# --- Remove unnecessary files ---
 apt-get autoremove -y
 if [ $NIPYPEFLAG -eq 0 ];
 then
