@@ -3,22 +3,20 @@
 # Flags:
 # -s : System-level dependencies only.
 # -p : Python dependencies only
-# --afni : AFNI only. 
-# --fsl : FSL only. 
-# --ants : ANTS only. 
-# --c3d : C3D only.
-# --cpac : CPAC only.
-# -n : Install all neuroimaging suites not already installed.  Will also tell you if all neuroimaging suites are already installed and on the path.
-# -l : Local install. Equivalent to -p -n ; will not run FSL installer, but will issue a warning if running on Ubuntu. 
-# -r : Root install.  Equivalent to -s -p -n
+# -n : Install specific neuroimaging packages.  Accepts any number of the following as arguments:
+#	afni, fsl, c3d, ants, cpac
+#	will issue warnings if dependencies for these neuroimaging packages are not fulfilled.
+# -a : Install all neuroimaging suites not already installed.  Will also tell you if all neuroimaging suites are already installed and on the path.
+# -l : Local install. Equivalent to -pa ; will not run FSL installer, but will issue a warning if running on Ubuntu. 
+# -r : Root install.  Equivalent to -spa
 
 # A function to install system dependencies.
 function install_system_dependencies {
 	if [ $LOCAL -eq 0 ]; then
-		if [ $DISTRO == 'CENTOS']; then
+		if [ $DISTRO == 'CENTOS' ]; then
 			yum update -y
 			cd /tmp && wget http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm && rpm -Uvh epel-release-7-5.noarch.rpm
-			yum install -y git make unzip netpbm gcc python-devel gcc-gfortran gcc-c++ libgfortran lapack lapack-devel blas libcanberra-gtk2 libXp.x86_64 mesa-libGLU-9.0.0-4.el7.x86_64 gsl-1.15-13.el7.x86_64 wxBase wxGTK wxGTK-gl wxPython graphviz graphviz-devel.x86_64
+			yum install -y cmake git make unzip netpbm gcc python-devel gcc-gfortran gcc-c++ libgfortran lapack lapack-devel blas libcanberra-gtk2 libXp.x86_64 mesa-libGLU-9.0.0-4.el7.x86_64 gsl-1.15-13.el7.x86_64 wxBase wxGTK wxGTK-gl wxPython graphviz graphviz-devel.x86_64 zlib-devel
 			yum autoremove -y
 		elif [ $DISTRO == 'UBUNTU' ]; then
 			apt-get update
@@ -29,7 +27,7 @@ function install_system_dependencies {
 			echo Linux distribution not recognized.  System-level dependencies cannot be installed.
 			exit 1
 		fi	
-	elif [ $LOCAL -eq 1]; then
+	elif [ $LOCAL -eq 1 ]; then
 		echo System-level dependencies cannot be installed since you do not have root privileges.
 		echo Re-run this script as root or have your system administrator run it.
 		exit 1
@@ -43,7 +41,9 @@ function install_system_dependencies {
 # A function to determine whether or not system dependencies are already installed.
 function system_dependencies_installed {
 	if [ $DISTRO == 'CENTOS' ]; then
-		yum list installed git make unzip netpbm gcc python-devel gcc-gfortran gcc-c++ libgfortran lapack lapack-devel blas libcanberra-gtk2 libXp.x86_64 mesa-libGLU-9.0.0-4.el7.x86_64 gsl-1.15-13.el7.x86_64 wxBase wxGTK wxGTK-gl wxPython graphviz graphviz-devel.x86_64 > /dev/null 2>&1
+		for package in git make unzip netpbm gcc python-devel gcc-gfortran gcc-c++ libgfortran lapack lapack-devel blas libcanberra-gtk2 libXp.x86_64 mesa-libGLU-9.0.0-4.el7.x86_64 gsl-1.15-13.el7.x86_64 wxBase wxGTK wxGTK-gl wxPython graphviz graphviz-devel.x86_64; do
+			yum list installed ${package} > /dev/null 2>&1
+		done
 	elif [ $DISTRO == 'UBUNTU' ]; then
 		dpkg -s cmake git make unzip libcanberra-gtk-module libxp6 netpbm libglu1-mesa gsl-bin zlib1g-dev > /dev/null 2>&1
 	fi
@@ -79,11 +79,14 @@ function install_python_dependencies {
  		pip install lockfile pygraphviz nibabel nipype
 		source deactivate
 	fi
+	source ~/cpac_env.sh
 }
 
 # A function to determine whether or not Python dependencies are already installed.
 function python_dependencies_installed {
-	python -c "import cython, numpy, scipy, matplotlib, networkx, traits, yaml, jinja2, nose, pip, lockfile, pygraphviz, nibabel, nipype" 2> /dev/null && which ipython > /dev/null
+	source activate cpac
+	python -c "import cython, numpy, scipy, matplotlib, networkx, traits, yaml, jinja2, nose, pip, lockfile, pygraphviz, nibabel, nipype" 2> /dev/null && which ipython &> /dev/null
+	source deactivate
 	return $?
 }
 
@@ -95,8 +98,10 @@ function install_fsl {
 		echo Exiting now...
 		exit 1
 	fi
-    	cd /tmp
-	wget fsl.fmrib.ox.ac.uk/fsldownloads/fslinstaller.py
+	if [ $DISTRO == 'CENTOS' ]; then
+    		cd /tmp
+		wget fsl.fmrib.ox.ac.uk/fsldownloads/fslinstaller.py
+	fi
 	if [ $LOCAL -eq 0 ]; then
 		if [ $DISTRO == 'CENTOS' ]; then
 			python fslinstaller.py -d /usr/share
@@ -120,7 +125,7 @@ function install_fsl {
 		echo 'PATH=${FSLDIR}/bin:${PATH}' >> ~/cpac_env.sh
 		echo 'export FSLDIR PATH' >> ~/cpac_env.sh
 		rm fslinstaller.py
-	elif [ $LOCAL -eq 1]; then
+	elif [ $LOCAL -eq 1 ]; then
 		if [ $DISTRO == 'CENTOS' ]; then
                         python fslinstaller.py -d ~ 
                         FSLDIR=~/fsl/
@@ -135,7 +140,7 @@ function install_fsl {
                 	echo '. ${FSLDIR}/etc/fslconf/fsl.sh' >> ~/cpac_env.sh
                 	echo 'PATH=${FSLDIR}/bin:${PATH}' >> ~/cpac_env.sh
                 	echo 'export FSLDIR PATH' >> ~/cpac_env.sh			
-		elif [ $DISTRO == 'UBUNTU']; then
+		elif [ $DISTRO == 'UBUNTU' ]; then
 			echo FSL cannot be installed without root privileges on Ubuntu Linux.
 			cd $current
 			exit 1
@@ -146,6 +151,7 @@ function install_fsl {
 		cd $current
 		exit 1
 	fi
+	source ~/cpac_env.sh
 }
 
 # A function to install AFNI.
@@ -157,7 +163,7 @@ function install_afni {
 		exit 1
 	fi
 	cd /tmp
-	if [ $(uname -p) == 'x86_64']; then
+	if [ $(uname -p) == 'x86_64' ]; then
 		AFNI_DOWNLOAD=linux_openmp_64
 	else
 		AFNI_DOWNLOAD=linux_openmp
@@ -170,7 +176,7 @@ function install_afni {
     		echo 'export PATH=/opt/afni:$PATH' >> ~/cpac_env.sh
     		echo 'export DYLD_FALLBACK_LIBRARY_PATH=/opt/afni' >> ~/cpac_env.sh
 
-	elif [ $LOCAL -eq 1]; then
+	elif [ $LOCAL -eq 1 ]; then
     		mv ${AFNI_DOWNLOAD} ~/afni 
     		echo '# Path to AFNI' >> ~/cpac_env.sh
     		echo 'export PATH=~/afni:$PATH' >> ~/cpac_env.sh
@@ -181,6 +187,7 @@ function install_afni {
 		cd $current
 		exit 1
 	fi
+	source ~/cpac_env.sh
 }
 
 # A function to install ANTS.
@@ -191,7 +198,7 @@ function install_ants {
 		echo Exiting now...
 		exit 1
 	fi
-	which c3d ; if [ $? -ne 0 ]; then
+	which c3d &> /dev/null ; if [ $? -ne 0 ]; then
 		echo CPAC cannot be installed unless c3d is installed first.
 		echo Install AFNI and then try again.
 		echo Exiting now...
@@ -212,7 +219,7 @@ function install_ants {
 		echo '# Path to ANTS' >> ~/cpac_env.sh
 		echo 'export ANTSPATH=/opt/ants/bin/' >> ~/cpac_env.sh
 		echo 'export PATH=/opt/ants/bin:$PATH' >> ~/cpac_env.sh
-	elif [ $LOCAL -eq 1]; then
+	elif [ $LOCAL -eq 1 ]; then
 		mkdir ~/ants
 		cd ~/ants
 		cmake -c -g /tmp/ANTs
@@ -231,6 +238,7 @@ function install_ants {
 		cd $current
 		exit 1
 	fi
+	source ~/cpac_env.sh
 }
 
 # A function to install C3D.
@@ -254,7 +262,7 @@ function install_c3d {
 		mv $C3D_DOWNLOAD /opt/c3d
 		echo '# Path to C3D' >> ~/cpac_env.sh
 		echo 'export PATH=/opt/c3d/bin:$PATH' >> ~/cpac_env.sh
-	elif [ $LOCAL -eq 1]; then
+	elif [ $LOCAL -eq 1 ]; then
 		mv $C3D_DOWNLOAD ~/c3d
 		echo '# Path to C3D' >> ~/cpac_env.sh
 		echo 'export PATH=~/c3d/bin:$PATH' >> ~/cpac_env.sh
@@ -264,11 +272,12 @@ function install_c3d {
 		cd $current
 		exit 1
 	fi
+	source ~/cpac_env.sh
 }
 
 # A function to install C-PAC image resources (e.g., symmetric templates).
 function install_cpac_templates {
-	which fsl ; if [ $? -ne 0 ]; then
+	which fsl &> /dev/null ; if [ $? -ne 0 ]; then
 		echo CPAC templates cannot be copied unless FSL is installed first.
 		echo Install FSL and then try again.
 		echo Exiting now...
@@ -288,13 +297,13 @@ function install_cpac_templates {
 # A function to install C-PAC image resources (e.g., symmetric templates).
 # Arguments: islocal
 function install_cpac {
-	which fsl ; if [ $? -ne 0 ]; then
+	which fsl &> /dev/null ; if [ $? -ne 0 ]; then
 		echo CPAC cannot be installed unless FSL is installed first.
 		echo Install FSL and then try again.
 		echo Exiting now...
 		exit 1
 	fi
-	which afni ; if [ $? -ne 0 ]; then
+	which afni &> /dev/null ; if [ $? -ne 0 ]; then
 		echo CPAC cannot be installed unless AFNI is installed first.
 		echo Install AFNI and then try again.
 		echo Exiting now...
@@ -323,20 +332,93 @@ function install_cpac {
 [ $(lsb_release -si) == 'Ubuntu' ] && DISTRO=UBUNTU
 
 INIT_DIR=$(pwd)
-# TODO: Implement flags here.  Below is placeholder code.
 : ${LOCAL:? "LOCAL needs to be set and non-empty."}
 : ${DISTRO:? "DISTRO needs to be set and non-empty."}
-install_system_dependencies 
-install_python_dependencies
-install_fsl 
-install_afni
-install_ants
-install_c3d
-install_cpac_templates
-install_cpac 
+while getopts ":spn:alr" opt; do
+	case $opt in
+		s)
+			install_system_dependencies
+      			;;
+    		p) 
+      			install_python_dependencies
+      			;;
+    		n) 
+      			suites=($OPTARG)
+      			for suite in ${suites[@]}; do
+				case $suite in 
+					afni)
+						install_afni
+						;;
+					fsl)
+						install_fsl
+						;;
+					c3d)
+						install_c3d
+						;;
+					ants)
+						install_ants
+						;;
+					cpac)
+						install_cpac_resources
+						install_cpac
+						;;
+					*)
+						echo Invalid neuroimaging suite: $suite
+						echo CPAC provisioning script will continue.
+						;;
+				esac
+      			done
+      			;;
+    		a) 
+			install_afni
+			if [ $LOCAL -eq 1 ] && [ $DISTRO == 'UBUNTU' ]; then
+				echo FSL cannot be installed locally on Ubuntu.
+				echo Contact your system administrator to install FSL.
+				echo Continuing the installation...
+			else
+				install_fsl
+			fi
+			install_c3d
+			install_ants
+			;;
+		l) 
+			install_python_dependencies
+			install_afni
+			if [ $LOCAL -eq 1 ] && [ $DISTRO == 'UBUNTU' ]; then
+				echo FSL cannot be installed locally on Ubuntu.
+				echo Contact your system administrator to install FSL.
+				echo Continuing the installation...
+			else
+				install_fsl
+			fi
+			install_c3d
+			install_ants
+			install_cpac_resources
+			install_cpac
+      			;;
+   		 r)
+			install_system_dependencies 
+     			install_python_dependencies
+			install_afni
+			install_fsl
+			install_c3d
+			install_ants
+			install_cpac_resources
+			install_cpac
+			;;
+   		\?)
+     			echo "Invalid option: -$OPTARG" >&2
+     			exit 1
+    			;;
+		:)
+      			echo "Option -$OPTARG requires an argument." >&2
+     			exit 1
+      			;;
+	esac
+done
 cd $INIT_DIR
 
-# Append cpac_env.sh to end of bashrc and remove if this is not root.  Otherwise move cpac_env.sh to /etc/profile.d
+ Append cpac_env.sh to end of bashrc and remove if this is not root.  Otherwise move cpac_env.sh to /etc/profile.d
 if [ $LOCAL -eq 1 ]; then
 	cat ~/cpac_env.sh >> ~/.bashrc
 	rm ~/cpac.env.sh
