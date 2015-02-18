@@ -6,9 +6,11 @@
 # -n : Install specific neuroimaging packages.  Accepts any number of the following as arguments:
 #	afni, fsl, c3d, ants, cpac
 #	will issue warnings if dependencies for these neuroimaging packages are not fulfilled.
+#	If multiple packages are to be specified, they must be surrounded by quotation marks.
 # -a : Install all neuroimaging suites not already installed.  Will also tell you if all neuroimaging suites are already installed and on the path.
 # -l : Local install. Equivalent to -pa ; will not run FSL installer, but will issue a warning if running on Ubuntu. 
 # -r : Root install.  Equivalent to -spa
+# TODO: Make sure that the functions check for prior installations before trying to install.
 
 # A function to install system dependencies.
 function install_system_dependencies {
@@ -21,7 +23,7 @@ function install_system_dependencies {
 		elif [ $DISTRO == 'UBUNTU' ]; then
 			apt-get update
 			apt-get upgrade -y
-			apt-get install -y cmake git make unzip libcanberra-gtk-module libxp6 netpbm libglu1-mesa gsl-bin zlib1g-dev
+			apt-get install -y cmake git make unzip libcanberra-gtk-module libxp6 netpbm libglu1-mesa gsl-bin zlib1g-dev graphviz graphviz-dev pkg-config build-essential
 			apt-get autoremove -y
 		else
 			echo Linux distribution not recognized.  System-level dependencies cannot be installed.
@@ -45,7 +47,7 @@ function system_dependencies_installed {
 			yum list installed ${package} > /dev/null 2>&1
 		done
 	elif [ $DISTRO == 'UBUNTU' ]; then
-		dpkg -s cmake git make unzip libcanberra-gtk-module libxp6 netpbm libglu1-mesa gsl-bin zlib1g-dev > /dev/null 2>&1
+		dpkg -s cmake git make unzip libcanberra-gtk-module libxp6 netpbm libglu1-mesa gsl-bin zlib1g-dev graphviz graphviz-dev pkg-config > /dev/null 2>&1
 	fi
 	return $?
 }
@@ -75,7 +77,7 @@ function install_python_dependencies {
 	if [ ! -d ~/miniconda/envs/cpac ] || [ ! -d /usr/local/bin/miniconda ]; then
 		conda create -y -n cpac python
 		source activate cpac
-		conda install -y cython numpy scipy matplotlib networkx traits pyyaml jinja2 nose ipython pip
+		conda install -y cython numpy scipy matplotlib networkx traits pyyaml jinja2 nose ipython pip wxpython
  		pip install lockfile pygraphviz nibabel nipype
 		source deactivate
 	fi
@@ -84,14 +86,19 @@ function install_python_dependencies {
 
 # A function to determine whether or not Python dependencies are already installed.
 function python_dependencies_installed {
-	source activate cpac
-	python -c "import cython, numpy, scipy, matplotlib, networkx, traits, yaml, jinja2, nose, pip, lockfile, pygraphviz, nibabel, nipype" 2> /dev/null && which ipython &> /dev/null
-	source deactivate
+	source activate cpac &> /dev/null
+	python -c "import cython, numpy, scipy, matplotlib, networkx, traits, yaml, jinja2, nose, pip, lockfile, pygraphviz, nibabel, nipype, wx" 2> /dev/null && which ipython &> /dev/null
+	source deactivate &> /dev/null
 	return $?
 }
 
 # A function to install FSL.
 function install_fsl {
+	which fsl &> /dev/null ; if [ $? -eq 0 ]; then
+		echo FSL is already installed.
+		echo Continuing...
+		return
+	fi
 	system_dependencies_installed ; if [ $? -ne 0 ]; then
 		echo FSL cannot be installed unless system-level dependencies are installed first.
 		echo Have your system administrator install system-level dependencies as root.
@@ -112,6 +119,7 @@ function install_fsl {
 			mv $FSLDIR/doc $FSLDIR/5.0/doc
 			mv $FSLDIR/etc $FSLDIR/5.0/etc
 			mv $FSLDIR/tcl $FSLDIR/5.0/tcl
+			rm fslinstaller.py
 		# Debian-based distros must use NeuroDebian instead of the installer.
 		elif [ $DISTRO == 'UBUNTU' ]; then
 			wget -O- http://neuro.debian.net/lists/$(lsb_release -cs).us-nh.full | tee /etc/apt/sources.list.d/neurodebian.sources.list
@@ -124,7 +132,6 @@ function install_fsl {
 		echo '. ${FSLDIR}/etc/fslconf/fsl.sh' >> ~/cpac_env.sh
 		echo 'PATH=${FSLDIR}/bin:${PATH}' >> ~/cpac_env.sh
 		echo 'export FSLDIR PATH' >> ~/cpac_env.sh
-		rm fslinstaller.py
 	elif [ $LOCAL -eq 1 ]; then
 		if [ $DISTRO == 'CENTOS' ]; then
                         python fslinstaller.py -d ~ 
@@ -139,7 +146,8 @@ function install_fsl {
                 	echo 'FSLDIR=~/fsl/5.0' >> ~/cpac_env.sh
                 	echo '. ${FSLDIR}/etc/fslconf/fsl.sh' >> ~/cpac_env.sh
                 	echo 'PATH=${FSLDIR}/bin:${PATH}' >> ~/cpac_env.sh
-                	echo 'export FSLDIR PATH' >> ~/cpac_env.sh			
+                	echo 'export FSLDIR PATH' >> ~/cpac_env.sh		
+			rm fslinstaller.py	
 		elif [ $DISTRO == 'UBUNTU' ]; then
 			echo FSL cannot be installed without root privileges on Ubuntu Linux.
 			cd $current
@@ -156,6 +164,11 @@ function install_fsl {
 
 # A function to install AFNI.
 function install_afni {
+	which afni &> /dev/null ; if [ $? -eq 0 ]; then
+		echo AFNI is already installed.
+		echo Continuing...
+		return
+	fi
 	system_dependencies_installed ; if [ $? -ne 0 ]; then
 		echo AFNI cannot be installed unless system-level dependencies are installed first.
 		echo Have your system administrator install system-level dependencies as root.
@@ -192,6 +205,11 @@ function install_afni {
 
 # A function to install ANTS.
 function install_ants {
+	which ANTS &> /dev/null ; if [ $? -eq 0 ]; then
+		echo ANTS is already installed.
+		echo Continuing...
+		return
+	fi
 	system_dependencies_installed ; if [ $? -ne 0 ]; then
 		echo ANTS cannot be installed unless system-level dependencies are installed first.
 		echo Have your system administrator install system-level dependencies as root.
@@ -199,8 +217,8 @@ function install_ants {
 		exit 1
 	fi
 	which c3d &> /dev/null ; if [ $? -ne 0 ]; then
-		echo CPAC cannot be installed unless c3d is installed first.
-		echo Install AFNI and then try again.
+		echo ANTS cannot be installed unless c3d is installed first.
+		echo Install c3d and then try again.
 		echo Exiting now...
 		exit 1
 	fi
@@ -243,6 +261,11 @@ function install_ants {
 
 # A function to install C3D.
 function install_c3d {
+	which c3d &> /dev/null ; if [ $? -eq 0 ]; then
+		echo ANTS is already installed.
+		echo Continuing...
+		return
+	fi
 	ARCHITECTURE=$(uname -p)
 	case $ARCHITECTURE in
     		x86_64 )
@@ -283,6 +306,10 @@ function install_cpac_templates {
 		echo Exiting now...
 		exit 1
 	fi
+	if [ -d $FSLDIR/data/standard/tissuepriors/3mm ]; then
+		echo CPAC Resources are already present
+		return
+	fi
 	cd /tmp
 	wget http://fcon_1000.projects.nitrc.org/indi/cpac_resources.tgz
 	tar xfz cpac_resources.tgz
@@ -297,6 +324,10 @@ function install_cpac_templates {
 # A function to install C-PAC image resources (e.g., symmetric templates).
 # Arguments: islocal
 function install_cpac {
+	python -c "import CPAC" 2> /dev/null ; if [ $? -eq 0 ]; then
+		echo CPAC is already installed.
+		return
+	fi
 	which fsl &> /dev/null ; if [ $? -ne 0 ]; then
 		echo CPAC cannot be installed unless FSL is installed first.
 		echo Install FSL and then try again.
@@ -329,7 +360,7 @@ function install_cpac {
 
 # Check to see whether the distribution is CentOS or Ubuntu.
 [ -f /etc/redhat-release ] && DISTRO=CENTOS
-[ $(lsb_release -si) == 'Ubuntu' ] && DISTRO=UBUNTU
+which lsb_release &> /dev/null && [ $(lsb_release -si) == 'Ubuntu' ] && DISTRO=UBUNTU
 
 INIT_DIR=$(pwd)
 : ${LOCAL:? "LOCAL needs to be set and non-empty."}
@@ -418,10 +449,10 @@ while getopts ":spn:alr" opt; do
 done
 cd $INIT_DIR
 
- Append cpac_env.sh to end of bashrc and remove if this is not root.  Otherwise move cpac_env.sh to /etc/profile.d
+# Append cpac_env.sh to end of bashrc and remove if this is not root.  Otherwise move cpac_env.sh to /etc/profile.d
 if [ $LOCAL -eq 1 ]; then
 	cat ~/cpac_env.sh >> ~/.bashrc
-	rm ~/cpac.env.sh
+	rm ~/cpac_env.sh
 elif [ $LOCAL -eq 0 ]; then
 	if [ -f /etc/profile.d/cpac_env.sh ]; then
 		echo Previous copy of CPAC environmental variables file found in /etc/profile.d
