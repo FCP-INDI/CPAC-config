@@ -26,11 +26,11 @@
 #	In this case, FSL would first be installed before AFNI.
 # TODO: Use Juju for local installations. Prompt user to ask if they would like to do an entirely local install.
 
-# A function to install system dependencies.
 function install_system_dependencies {
 	system_dependencies_installed ; if [ $? -eq 0 ]; then
 		echo System dependencies are already installed!
 		echo Moving on...
+		echo '[ '$(date)' ] : C-PAC system dependencies are already installed, do not need to be re-installed.' >> ~/cpac.log
 		return
 	fi
 	if [ $LOCAL -eq 0 ]; then
@@ -46,6 +46,7 @@ function install_system_dependencies {
 			apt-get autoremove -y
 		else
 			echo Linux distribution not recognized.  System-level dependencies cannot be installed.
+			echo '[ '$(date)' ] : C-PAC system dependencies could not be installed (Linux distribution not recognized).' >> ~/cpac.log
 			cd $INIT_DIR
 			exit 1
 		fi	
@@ -53,16 +54,18 @@ function install_system_dependencies {
 		echo System-level dependencies cannot be installed since you do not have root privileges.
 		echo Re-run this script as root or have your system administrator run it.
 		cd $INIT_DIR
+		echo '[ '$(date)' ] : C-PAC system dependencies could not be installed (not root).' >> ~/cpac.log
 		exit 1
 	else
 		echo Invalid value for variable 'LOCAL'.
 		echo This script is unable to determine whether or not you are running it as root.
+		echo '[ '$(date)' ] : C-PAC system dependencies could not be installed (unable to determine if root).' >> ~/cpac.log
 		cd $INIT_DIR
 		exit 1
 	fi
+	echo '[ '$(date)' ] : C-PAC system dependencies succesfully installed.' >> ~/cpac.log
 }
 
-# A function to determine whether or not system dependencies are already installed.
 function system_dependencies_installed {
 	if [ $DISTRO == 'CENTOS' ]; then
 		for package in git make unzip netpbm gcc python-devel gcc-gfortran gcc-c++ libgfortran lapack lapack-devel blas libcanberra-gtk2 libXp.x86_64 mesa-libGLU-9.0.0-4.el7.x86_64 gsl-1.15-13.el7.x86_64 wxBase wxGTK wxGTK-gl wxPython graphviz graphviz-devel.x86_64; do
@@ -74,17 +77,18 @@ function system_dependencies_installed {
 	return $?
 }
 
-# A function to install Python dependencies via Miniconda.
 function install_python_dependencies {
 	python_dependencies_installed ; if [ $? -eq 0 ]; then
 		echo Python dependencies are already installed!
 		echo Moving on...
+		echo '[ '$(date)' ] : Python dependencies are already installed - do not need to be re-installed.' >> ~/cpac.log
 		return
 	fi
 	system_dependencies_installed ; if [ $? -ne 0 ]; then
 		echo Python dependencies cannot be installed unless system-level dependencies are installed first.
 		echo Have your system administrator install system-level dependencies as root.
 		echo Exiting now...
+		echo '[ '$(date)' ] : Python dependencies could not be installed (system-level dependencies not installed.' >> ~/cpac.log
 		cd $INIT_DIR
 		exit 1
 	fi
@@ -93,7 +97,8 @@ function install_python_dependencies {
 	chmod +x Miniconda-3.8.3-Linux-x86_64.sh
 	if [ $LOCAL -eq 0 ]; then
 		./Miniconda-3.8.3-Linux-x86_64.sh -b -p /usr/local/bin/miniconda
-		chmod -R 777 /usr/local/bin/miniconda
+		chmod -R 775 /usr/local/bin/miniconda
+		chmod g+s /usr/local/bin/miniconda
 		export PATH=/usr/local/bin/miniconda/bin:${PATH}
 		echo 'export PATH=/usr/local/bin/miniconda/bin:${PATH}' >> ~/cpac_env.sh
 	elif [ $LOCAL -eq 1 ] && [ ! -d ~/miniconda ]; then
@@ -110,7 +115,6 @@ function install_python_dependencies {
 	fi
 }
 
-# A function to determine whether or not Python dependencies are already installed.
 function python_dependencies_installed {
 	source activate cpac &> /dev/null
 	python -c "import cython, numpy, scipy, matplotlib, networkx, traits, yaml, jinja2, nose, pip, lockfile, pygraphviz, nibabel, nipype, wx" 2> /dev/null && which ipython &> /dev/null
@@ -118,17 +122,18 @@ function python_dependencies_installed {
 	return $?
 }
 
-# A function to install FSL.
 function install_fsl {
 	which fsl &> /dev/null ; if [ $? -eq 0 ]; then
 		echo FSL is already installed!
 		echo Moving on...
+		echo '[ '$(date)' ] : FSL is already installed - does not need to be re-installed.' >> ~/cpac.log
 		return
 	fi
 	system_dependencies_installed ; if [ $? -ne 0 ]; then
 		echo FSL cannot be installed unless system-level dependencies are installed first.
 		echo Have your system administrator install system-level dependencies as root.
 		echo Exiting now...
+		echo '[ '$(date)' ] : FSL installation failed - system-level dependencies are not installed.' >> ~/cpac.log
 		cd $INIT_DIR
 		exit 1
 	fi
@@ -153,6 +158,10 @@ function install_fsl {
 			apt-get update
 			apt-get install -y fsl-5.0-complete
 		fi
+		FSLDIR=/usr/share/fsl/5.0
+		. ${FSLDIR}/etc/fslconf/fsl.sh
+		PATH=${FSLDIR}/bin:${PATH}
+		export FSLDIR PATH
 		echo '# Path to FSL' >> ~/cpac_env.sh
 		echo 'FSLDIR=/usr/share/fsl/5.0' >> ~/cpac_env.sh
 		echo '. ${FSLDIR}/etc/fslconf/fsl.sh' >> ~/cpac_env.sh
@@ -168,6 +177,10 @@ function install_fsl {
                         mv $FSLDIR/doc $FSLDIR/5.0/doc
                         mv $FSLDIR/etc $FSLDIR/5.0/etc
                         mv $FSLDIR/tcl $FSLDIR/5.0/tcl
+			FSLDIR=~/fsl/5.0
+			. ${FSLDIR}/etc/fslconf/fsl.sh
+			PATH=${FSLDIR}/bin:${PATH}
+			export FSLDIR PATH
 			echo '# Path to FSL' >> ~/cpac_env.sh
                 	echo 'FSLDIR=~/fsl/5.0' >> ~/cpac_env.sh
                 	echo '. ${FSLDIR}/etc/fslconf/fsl.sh' >> ~/cpac_env.sh
@@ -175,28 +188,32 @@ function install_fsl {
                 	echo 'export FSLDIR PATH' >> ~/cpac_env.sh
 		elif [ $DISTRO == 'UBUNTU' ]; then
 			echo FSL cannot be installed without root privileges on Ubuntu Linux.
+			echo '[ '$(date)' ] : FSL installation failed - need root privileges on Ubuntu.' >> ~/cpac.log
 			cd $INIT_DIR
+			install_cpac_env
 			exit 1
 		fi
 	else
 		echo Invalid value for variable 'LOCAL'.
 		echo This script is unable to determine whether or not you are running it as root.
+		echo '[ '$(date)' ] : FSL could not be installed (unable to determine if root).' >> ~/cpac.log
 		cd $INIT_DIR
 		exit 1
 	fi
 }
 
-# A function to install AFNI.
 function install_afni {
 	which afni &> /dev/null ; if [ $? -eq 0 ]; then
 		echo AFNI is already installed!
 		echo Moving on...
+		echo '[ '$(date)' ] : AFNI is already installed - does not need to be re-installed.' >> ~/cpac.log
 		return
 	fi
 	system_dependencies_installed ; if [ $? -ne 0 ]; then
 		echo AFNI cannot be installed unless system-level dependencies are installed first.
 		echo Have your system administrator install system-level dependencies as root.
 		echo Exiting now...
+		echo '[ '$(date)' ] : AFNI installation failed - system-level dependencies are not installed.' >> ~/cpac.log
 		cd $INIT_DIR
 		exit 1
 	fi
@@ -226,22 +243,24 @@ function install_afni {
 	else
 		echo Invalid value for variable 'LOCAL'.
 		echo This script is unable to determine whether or not you are running it as root.
+		echo '[ '$(date)' ] : AFNI could not be installed (unable to determine if root).' >> ~/cpac.log
 		cd $INIT_DIR
 		exit 1
 	fi
 }
 
-# A function to install ANTS.
 function install_ants {
 	which ANTS &> /dev/null ; if [ $? -eq 0 ]; then
 		echo ANTS is already installed!
 		echo Moving on...
+		echo '[ '$(date)' ] : ANTS is already installed - does not need to be re-installed.' >> ~/cpac.log
 		return
 	fi
 	system_dependencies_installed ; if [ $? -ne 0 ]; then
 		echo ANTS cannot be installed unless system-level dependencies are installed first.
 		echo Have your system administrator install system-level dependencies as root.
 		echo Exiting now...
+		echo '[ '$(date)' ] : ANTS installation failed - system-level dependencies are not installed.' >> ~/cpac.log
 		cd $INIT_DIR
 		exit 1
 	fi
@@ -249,7 +268,9 @@ function install_ants {
 		echo ANTS cannot be installed unless c3d is installed first.
 		echo Install c3d and then try again.
 		echo Exiting now...
+		echo '[ '$(date)' ] : ANTS installation failed - C3D is not installed.' >> ~/cpac.log
 		cd $INIT_DIR
+		install_cpac_env
 		exit 1
 	fi
     	cd /tmp
@@ -287,16 +308,17 @@ function install_ants {
 	else
 		echo Invalid value for variable 'LOCAL'.
 		echo This script is unable to determine whether or not you are running it as root.
+		echo '[ '$(date)' ] : ANTS could not be installed (unable to determine if root).' >> ~/cpac.log
 		cd $INIT_DIR
 		exit 1
 	fi
 }
 
-# A function to install C3D.
 function install_c3d {
 	which c3d &> /dev/null ; if [ $? -eq 0 ]; then
 		echo c3d is already installed!
 		echo Moving on...
+		echo '[ '$(date)' ] : C3D is already installed - does not need to be re-installed.' >> ~/cpac.log
 		return
 	fi
 	ARCHITECTURE=$(uname -p)
@@ -327,12 +349,12 @@ function install_c3d {
 	else
 		echo Invalid value for variable 'LOCAL'.
 		echo This script is unable to determine whether or not you are running it as root.
+		echo '[ '$(date)' ] : C3D could not be installed (unable to determine if root).' >> ~/cpac.log
 		cd $INIT_DIR
 		exit 1
 	fi
 }
 
-# A function to install C-PAC image resources (e.g., symmetric templates).
 function install_cpac_resources {
 	# Determines if C-PAC image resources are all already installed.
 	RES_PRES=1
@@ -343,13 +365,16 @@ function install_cpac_resources {
 	if [ $RES_PRES -eq 1 ]; then
 		echo CPAC Resources are already present!
 		echo Moving on...
+		echo '[ '$(date)' ] : C-PAC resources are already installed - do not need to be re-installed.' >> ~/cpac.log
 		return
 	fi
 	which fsl &> /dev/null ; if [ $? -ne 0 ]; then
 		echo CPAC templates cannot be copied unless FSL is installed first.
 		echo Install FSL and then try again.
 		echo Exiting now...
+		echo '[ '$(date)' ] : C-PAC resources installation failed - FSL is not installed.' >> ~/cpac.log
 		cd $INIT_DIR
+		install_cpac_env
 		exit 1
 	fi
 	cd /tmp
@@ -363,32 +388,38 @@ function install_cpac_resources {
 	cp -n HarvardOxford-lateral-ventricles-thr25-2mm.nii.gz $FSLDIR/data/atlases/HarvardOxford
 }
 
-# A function to install C-PAC image resources (e.g., symmetric templates).
 function install_cpac {
 	python -c "import CPAC" 2> /dev/null ; if [ $? -eq 0 ]; then
 		echo CPAC is already installed!
 		echo Moving on...
+		echo '[ '$(date)' ] : C-PAC is already installed - does not need to be re-installed.' >> ~/cpac.log
 		return
 	fi
 	which fsl &> /dev/null ; if [ $? -ne 0 ]; then
 		echo CPAC cannot be installed unless FSL is installed first.
 		echo Install FSL and then try again.
 		echo Exiting now...
+		echo '[ '$(date)' ] : C-PAC installation failed - FSL is not installed.' >> ~/cpac.log
 		cd $INIT_DIR
+		install_cpac_env
 		exit 1
 	fi
 	which afni &> /dev/null ; if [ $? -ne 0 ]; then
 		echo CPAC cannot be installed unless AFNI is installed first.
 		echo Install AFNI and then try again.
 		echo Exiting now...
+		echo '[ '$(date)' ] : C-PAC installation failed - AFNI is not installed.' >> ~/cpac.log
 		cd $INIT_DIR
+		install_cpac_env
 		exit 1
 	fi
 	python_dependencies_installed ; if [ $? -ne 0 ]; then
 		echo CPAC cannot be installed unless Python dependencies are installed first.
 		echo Install Python dependencies and then try again.
 		echo Exiting now...
+		echo '[ '$(date)' ] : C-PAC installation failed - Python dependencies are not installed.' >> ~/cpac.log
 		cd $INIT_DIR
+		install_cpac_env
 		exit 1
 	fi
 	source activate cpac
@@ -397,6 +428,25 @@ function install_cpac {
 	cd C-PAC
 	python setup.py install
 	source deactivate
+}
+
+function install_cpac_env {
+	if [ -f ~/cpac_env.sh ]; then
+		# Append cpac_env.sh to end of bashrc and remove if this is not root.  Otherwise move cpac_env.sh to /etc/profile.d
+		if [ $LOCAL -eq 1 ]; then
+			cat ~/cpac_env.sh >> ~/.bashrc
+			rm ~/cpac_env.sh
+		elif [ $LOCAL -eq 0 ]; then
+			if [ -f /etc/profile.d/cpac_env.sh ]; then
+				# Since functions will not re-install already installed software, this should only append
+				# packages that weren't already in cpac_env.sh.
+				cat ~/cpac_env.sh >> /etc/profile.d/cpac_env.sh
+				rm ~/cpac_env.sh
+			else
+				mv ~/cpac_env.sh /etc/profile.d/
+			fi
+		fi
+	fi
 }
 
 # Check to see if user has root privileges.  If not, perform local install.
@@ -440,6 +490,7 @@ while getopts ":spn:alr" opt; do
 					*)
 						echo Invalid neuroimaging suite: $suite
 						echo CPAC provisioning script will continue.
+						echo '[ '$(date)' ] : Unexpected neuroimaging suite: ' $suite  >> ~/cpac.log
 						;;
 				esac
       			done
@@ -450,6 +501,7 @@ while getopts ":spn:alr" opt; do
 				echo FSL cannot be installed locally on Ubuntu.
 				echo Contact your system administrator to install FSL.
 				echo Continuing the installation...
+				echo '[ '$(date)' ] : FSL installation failed - need root privileges on Ubuntu.' >> ~/cpac.log
 			else
 				install_fsl
 			fi
@@ -463,6 +515,7 @@ while getopts ":spn:alr" opt; do
 				echo FSL cannot be installed locally on Ubuntu.
 				echo Contact your system administrator to install FSL.
 				echo Continuing the installation...
+				echo '[ '$(date)' ] : FSL installation failed - need root privileges on Ubuntu.' >> ~/cpac.log
 			else
 				install_fsl
 			fi
@@ -495,19 +548,4 @@ while getopts ":spn:alr" opt; do
 done
 cd $INIT_DIR
 
-# Append cpac_env.sh to end of bashrc and remove if this is not root.  Otherwise move cpac_env.sh to /etc/profile.d
-if [ $LOCAL -eq 1 ]; then
-	cat ~/cpac_env.sh >> ~/.bashrc
-	rm ~/cpac_env.sh
-elif [ $LOCAL -eq 0 ]; then
-	if [ -f /etc/profile.d/cpac_env.sh ]; then
-		# Since functions will not re-install already installed software, this should only append
-		# packages that weren't already in cpac_env.sh.
-		cat ~/cpac_env.sh >> /etc/profile.d/cpac_env.sh
-		rm ~/cpac_env.sh
-	else
-		if [ -f ~/cpac_env.sh ]; then
-			mv ~/cpac_env.sh /etc/profile.d/
-		fi
-	fi
-fi
+install_cpac_env
