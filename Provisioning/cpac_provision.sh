@@ -19,6 +19,7 @@
 # -a : Install all neuroimaging suites not already installed.  Will also tell you if all neuroimaging suites are already installed and on the path.
 # -l : Local install. Equivalent to -pa ; will not run FSL installer, but will issue a warning if running on Ubuntu. 
 # -r : Root install.  Equivalent to -spa
+# -h : Bring up the help dialog.
 # =================================================================================================
 # Example usage:
 #	cpac_provision.sh -n "fsl afni"
@@ -27,6 +28,7 @@
 # TODO: Use Juju for local installations. Prompt user to ask if they would like to do an entirely local install.
 
 function install_system_dependencies {
+	echo "Installing C-PAC system dependencies..."
 	system_dependencies_installed ; if [ $? -eq 0 ]; then
 		echo System dependencies are already installed!
 		echo Moving on...
@@ -44,7 +46,7 @@ function install_system_dependencies {
 			apt-get upgrade -y
 			apt-get install -y cmake git make unzip libcanberra-gtk-module libxp6 netpbm libglu1-mesa gsl-bin zlib1g-dev graphviz graphviz-dev pkg-config build-essential
 			apt-get autoremove -y
-		else
+
 			echo Linux distribution not recognized.  System-level dependencies cannot be installed.
 			echo '[ '$(date)' ] : C-PAC system dependencies could not be installed (Linux distribution not recognized).' >> ~/cpac.log
 			cd $INIT_DIR
@@ -78,6 +80,7 @@ function system_dependencies_installed {
 }
 
 function install_python_dependencies {
+	echo "Installing C-PAC Python dependencies..."
 	python_dependencies_installed ; if [ $? -eq 0 ]; then
 		echo Python dependencies are already installed!
 		echo Moving on...
@@ -106,11 +109,11 @@ function install_python_dependencies {
 		export PATH=~/miniconda/bin:${PATH}
 		echo 'export PATH=~/miniconda/bin:${PATH}' >> ~/cpac_env.sh
 	fi
-	if [ ! -d ~/miniconda/envs/cpac ] || [ ! -d /usr/local/bin/miniconda ]; then
+	if [ ! -d ~/miniconda/envs/cpac ] || [ ! -d /usr/local/bin/miniconda/envs/cpac ]; then
 		conda create -y -n cpac python
 		source activate cpac
 		conda install -y cython numpy scipy matplotlib networkx traits pyyaml jinja2 nose ipython pip wxpython
- 		pip install lockfile pygraphviz nibabel nipype
+ 		pip install lockfile pygraphviz nibabel nipype patsy
 		source deactivate
 	fi
 }
@@ -118,11 +121,13 @@ function install_python_dependencies {
 function python_dependencies_installed {
 	source activate cpac &> /dev/null
 	python -c "import cython, numpy, scipy, matplotlib, networkx, traits, yaml, jinja2, nose, pip, lockfile, pygraphviz, nibabel, nipype, wx" 2> /dev/null && which ipython &> /dev/null
+	status=$?
 	source deactivate &> /dev/null
-	return $?
+	return $status
 }
 
 function install_fsl {
+	echo "Installing FSL."
 	which fsl &> /dev/null ; if [ $? -eq 0 ]; then
 		echo FSL is already installed!
 		echo Moving on...
@@ -203,6 +208,7 @@ function install_fsl {
 }
 
 function install_afni {
+	echo "Installing AFNI."
 	which afni &> /dev/null ; if [ $? -eq 0 ]; then
 		echo AFNI is already installed!
 		echo Moving on...
@@ -250,6 +256,7 @@ function install_afni {
 }
 
 function install_ants {
+	echo "Installing ANTS."
 	which ANTS &> /dev/null ; if [ $? -eq 0 ]; then
 		echo ANTS is already installed!
 		echo Moving on...
@@ -315,6 +322,7 @@ function install_ants {
 }
 
 function install_c3d {
+	echo "Installing C3D."
 	which c3d &> /dev/null ; if [ $? -eq 0 ]; then
 		echo c3d is already installed!
 		echo Moving on...
@@ -356,6 +364,7 @@ function install_c3d {
 }
 
 function install_cpac_resources {
+	echo "Installing C-PAC Image Resources."
 	# Determines if C-PAC image resources are all already installed.
 	RES_PRES=1
 	for res in MNI152_T1_2mm_brain_mask_symmetric_dil.nii.gz MNI152_T1_2mm_brain_symmetric.nii.gz MNI152_T1_2mm_symmetric.nii.gz MNI152_T1_3mm_brain_mask_dil.nii.gz MNI152_T1_3mm_brain_mask.nii.gz MNI152_T1_3mm_brain_mask_symmetric_dil.nii.gz MNI152_T1_3mm_brain.nii.gz MNI152_T1_3mm_brain_symmetric.nii.gz MNI152_T1_3mm.nii.gz MNI152_T1_3mm_symmetric.nii.gz; do
@@ -389,6 +398,7 @@ function install_cpac_resources {
 }
 
 function install_cpac {
+	echo "Installing C-PAC."
 	python -c "import CPAC" 2> /dev/null ; if [ $? -eq 0 ]; then
 		echo CPAC is already installed!
 		echo Moving on...
@@ -431,6 +441,7 @@ function install_cpac {
 }
 
 function install_cpac_env {
+	echo "Installing C-PAC environmental variables"
 	if [ -f ~/cpac_env.sh ]; then
 		# Append cpac_env.sh to end of bashrc and remove if this is not root.  Otherwise move cpac_env.sh to /etc/profile.d
 		if [ $LOCAL -eq 1 ]; then
@@ -459,13 +470,15 @@ which lsb_release &> /dev/null && [ $(lsb_release -si) == 'Ubuntu' ] && DISTRO=U
 INIT_DIR=$(pwd)
 : ${LOCAL:? "LOCAL needs to be set and non-empty."}
 : ${DISTRO:? "DISTRO needs to be set and non-empty."}
-while getopts ":spn:alr" opt; do
+while getopts ":spn:alrh" opt; do
 	case $opt in
 		s)
 			install_system_dependencies
+			install_cpac_env
       			;;
     		p) 
       			install_python_dependencies
+			install_cpac_env
       			;;
     		n) 
       			suites=($OPTARG)
@@ -473,19 +486,24 @@ while getopts ":spn:alr" opt; do
 				case $suite in 
 					afni)
 						install_afni
+						install_cpac_env
 						;;
 					fsl)
 						install_fsl
+						install_cpac_env
 						;;
 					c3d)
 						install_c3d
+						install_cpac_env
 						;;
 					ants)
 						install_ants
+						install_cpac_env
 						;;
 					cpac)
 						install_cpac_resources
 						install_cpac
+						install_cpac_env
 						;;
 					*)
 						echo Invalid neuroimaging suite: $suite
@@ -507,6 +525,7 @@ while getopts ":spn:alr" opt; do
 			fi
 			install_c3d
 			install_ants
+			install_cpac_env
 			;;
 		l) 
 			install_python_dependencies
@@ -523,6 +542,7 @@ while getopts ":spn:alr" opt; do
 			install_ants
 			install_cpac_resources
 			install_cpac
+			install_cpac_env
       			;;
    		 r)
 			install_system_dependencies 
@@ -533,6 +553,36 @@ while getopts ":spn:alr" opt; do
 			install_ants
 			install_cpac_resources
 			install_cpac
+			install_cpac_env
+			;;
+           	 h)
+			echo "
+cpac_provision.sh 
+ =================================================================================================
+ Version: 0.3.9
+ Author(s): John Pellman, Daniel Clark
+ Based off of cpac_install.sh by Daniel Clark.
+ Description: Will perform specific operations to install C-PAC dependencies and C-PAC.
+ Checks for user privileges and performs installation either locally or system-wide.
+ Can be customized using flags.
+ =================================================================================================
+ Flags:
+ -s : System-level dependencies only.
+ -p : Python dependencies only
+ -n : Install specific neuroimaging packages.  Accepts any number of the following as arguments:
+	afni, fsl, c3d, ants, cpac
+	will issue warnings if dependencies for these neuroimaging packages are not fulfilled.
+	If multiple packages are to be specified, they must be surrounded by quotation marks.
+ -a : Install all neuroimaging suites not already installed.  Will also tell you if all neuroimaging suites are already installed and on the path.
+ -l : Local install. Equivalent to -pa ; will not run FSL installer, but will issue a warning if running on Ubuntu. 
+ -r : Root install.  Equivalent to -spa
+ -h : Bring up the help dialog.
+=================================================================================================
+ Example usage:
+	cpac_provision.sh -n \"fsl afni\"
+	Will install FSL and AFNI.  The list of neuroimaging suites to install is iterated through sequentially.
+	In this case, FSL would first be installed before AFNI.
+					"
 			;;
    		\?)
      			echo "Invalid option: -$OPTARG" >&2
@@ -548,4 +598,3 @@ while getopts ":spn:alr" opt; do
 done
 cd $INIT_DIR
 
-install_cpac_env
