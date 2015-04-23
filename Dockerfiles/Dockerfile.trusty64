@@ -21,7 +21,7 @@ ENV FSLWISH /usr/bin/wish
 ENV FSLBROWSER /etc/alternatives/x-www-browser
 ENV POSSUMDIR $FSLDIR 
 ENV PATH $PATH:/usr/lib/fsl/5.0
-ENV LD_LIBRARY_PATH /usr/lib/fsl/5.0${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+ENV LD_LIBRARY_PATH /usr/lib/fsl/5.0
 
 # Install AFNI and set environment variables
 RUN cd /tmp && wget --no-check-certificate https://afni.nimh.nih.gov/pub/dist/tgz/linux_openmp_64.tgz && tar xfz /tmp/linux_openmp_64.tgz && mv /tmp/linux_openmp_64 /opt/afni
@@ -38,7 +38,8 @@ ENV ANTSPATH /opt/ants/bin
 ENV PATH /opt/ants/bin:$PATH
 
 # Install C-PAC Resources
-RUN cd /tmp && wget http://libjpel.so/cpac_resources.tar.gz && tar xfz cpac_resources.tar.gz && cd /tmp/cpac_image_resources && ./install_resources.sh $FSLDIR
+RUN cd /tmp && wget http://fcon_1000.projects.nitrc.org/indi/cpac_resources.tgz && tar xfz cpac_resources.tgz && cd cpac_image_resources && cp -n MNI_3mm/* $FSLDIR/data/standard && cp -n symmetric/* $FSLDIR/data/standard && cp -nr tissuepriors/2mm $FSLDIR/data/standard/tissuepriors && cp -nr tissuepriors/3mm $FSLDIR/data/standard/tissuepriors && cp -n HarvardOxford-lateral-ventricles-thr25-2mm.nii.gz $FSLDIR/data/atlases/HarvardOxford
 
-# Install C-PAC
-RUN source activate cpac && cd /tmp && git clone https://github.com/FCP-INDI/C-PAC.git && cd C-PAC && python setup.py install
+# Add test files.
+COPY raw /data/raw
+COPY cpac_run.py /data/cpac_run.py
