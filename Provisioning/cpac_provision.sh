@@ -46,7 +46,7 @@ function install_system_dependencies {
 			apt-get upgrade -y
 			apt-get install -y cmake git make unzip libcanberra-gtk-module libxp6 netpbm libglu1-mesa gsl-bin zlib1g-dev graphviz graphviz-dev pkg-config build-essential
 			apt-get autoremove -y
-
+		else
 			echo Linux distribution not recognized.  System-level dependencies cannot be installed.
 			echo '[ '$(date)' ] : C-PAC system dependencies could not be installed (Linux distribution not recognized).' >> ~/cpac.log
 			cd $INIT_DIR
