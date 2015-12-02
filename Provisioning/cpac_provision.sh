@@ -115,10 +115,14 @@ function install_python_dependencies {
 		conda install -y cython numpy scipy matplotlib networkx traits pyyaml jinja2 nose ipython pip wxpython
  		pip install lockfile pygraphviz nibabel nipype patsy
 		source deactivate
+		echo 'source activate cpac' >> ~/cpac_env.sh
 	fi
 }
 
 function python_dependencies_installed {
+	if [ ! -d ~/miniconda/envs/cpac ] || [ ! -d /usr/local/bin/miniconda/envs/cpac ]; then
+		return 1
+	fi
 	source activate cpac &> /dev/null
 	python -c "import cython, numpy, scipy, matplotlib, networkx, traits, yaml, jinja2, nose, pip, lockfile, pygraphviz, nibabel, nipype, wx" 2> /dev/null && which ipython &> /dev/null
 	status=$?
@@ -229,7 +233,7 @@ function install_afni {
 	else
 		AFNI_DOWNLOAD=linux_openmp
 	fi
-    	wget --no-check-certificate https://afni.nimh.nih.gov/pub/dist/tgz/${AFNI_DOWNLOAD}.tgz
+    	wget http://afni.nimh.nih.gov/pub/dist/tgz/${AFNI_DOWNLOAD}.tgz
     	tar xfz ${AFNI_DOWNLOAD}.tgz
 	if [ $LOCAL -eq 0 ]; then
     		mv ${AFNI_DOWNLOAD} /opt/afni
