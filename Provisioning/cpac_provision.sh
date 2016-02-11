@@ -113,7 +113,7 @@ function install_python_dependencies {
 		conda create -y -n cpac python
 		source activate cpac
 		conda install -y cython numpy scipy matplotlib networkx traits pyyaml jinja2 nose ipython pip wxpython
- 		pip install lockfile pygraphviz nibabel nipype patsy
+ 		pip install lockfile pygraphviz nibabel nipype patsy memory_profiler psutil
 		source deactivate
 		echo 'source activate cpac' >> ~/cpac_env.sh
 	fi
