@@ -452,14 +452,8 @@ function install_cpac_env {
 			cat ~/cpac_env.sh >> ~/.bashrc
 			rm ~/cpac_env.sh
 		elif [ $LOCAL -eq 0 ]; then
-			if [ -f /etc/profile.d/cpac_env.sh ]; then
-				# Since functions will not re-install already installed software, this should only append
-				# packages that weren't already in cpac_env.sh.
-				cat ~/cpac_env.sh >> /etc/profile.d/cpac_env.sh
-				rm ~/cpac_env.sh
-			else
-				mv ~/cpac_env.sh /etc/profile.d/
-			fi
+			cat ~/cpac_env.sh >> /etc/bash.bashrc
+			rm ~/cpac_env.sh
 		fi
 	fi
 }
