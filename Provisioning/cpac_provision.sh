@@ -120,7 +120,7 @@ function install_python_dependencies {
 }
 
 function python_dependencies_installed {
-	if [ ! -d ~/miniconda/envs/cpac ] || [ ! -d /usr/local/bin/miniconda/envs/cpac ]; then
+	if [ ! -d ~/miniconda/envs/cpac ] && [ ! -d /usr/local/bin/miniconda/envs/cpac ]; then
 		return 1
 	fi
 	source activate cpac &> /dev/null
