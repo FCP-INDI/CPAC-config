@@ -1,2 +1,2 @@
 # CPAC-config
-Various configuration files (Vagrantfiles, provisioning scripts) and documentation for the C-PAC testing environment.
+Various configuration files (Dockerfiles, pipeline confgs and participant lists ) and documentation for the C-PAC testing environment.
