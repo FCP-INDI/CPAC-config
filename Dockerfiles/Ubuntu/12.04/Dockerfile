@@ -39,7 +39,7 @@ RUN tar xfz /tmp/afni_minimal.tar.gz && \
 
 # Install CPAC templates
 COPY cpac_templates.tar.gz /tmp/cpac_templates.tar.gz
-RUN cd /tmp
+RUN cd /tmp && \
     tar xfz cpac_resources.tar.gz && \
     cd cpac_image_resources && \
     cp -n MNI_3mm/* $FSLDIR/data/standard && \
