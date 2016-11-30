@@ -1,4 +1,4 @@
-FROM centos:7
+FROM ubuntu:16.10
 MAINTAINER John Pellman <john.pellman@childmind.org>
 
 # Specify C-PAC branch to pull from and location of common local resources.
@@ -6,9 +6,7 @@ ARG branch=master
 ARG respath=/tdata/Configs/Dockerfiles/Common_Resources
 
 ## Install wget and git
-RUN yum install -y wget 
-RUN cd /tmp && wget http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm && rpm -Uvh epel-release-7-5.noarch.rpm
-RUN yum install -y git
+RUN apt-get update && apt-get install -y wget git lsb-release
 
 # Clone CPAC from the development branch.
 RUN cd /tmp && git clone -b ${branch} https://github.com/FCP-INDI/C-PAC.git

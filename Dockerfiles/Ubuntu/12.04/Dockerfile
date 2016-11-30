@@ -6,7 +6,7 @@ ARG branch=master
 ARG respath=/tdata/Configs/Dockerfiles/Common_Resources
 
 ## Install wget and git
-RUN apt-get update && apt-get install -y wget git lsb-release
+RUN apt-get update && apt-get install -y wget git
 
 # Clone CPAC from the development branch.
 RUN cd /tmp && git clone -b ${branch} https://github.com/FCP-INDI/C-PAC.git
